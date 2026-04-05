@@ -1,0 +1,15 @@
+# Core data and utility libraries
+numpy>=1.26
+pandas>=2.2
+Pillow>=10.0
+tifffile>=2024.0.0
+shapely>=2.0
+scikit-learn>=1.4
+matplotlib>=3.8
+tqdm>=4.66
+
+# Deep learning stack
+# If you need GPU/CUDA support on Windows, install matching PyTorch wheels
+# from the official PyTorch selector instead of relying on default pip resolution.
+torch
+torchvision
