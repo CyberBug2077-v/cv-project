@@ -1,0 +1,11 @@
+{
+  "best_epoch": 30,
+  "best_train_loss": 0.8017537700824249,
+  "param_stats": {
+    "total_params": 11505856,
+    "trainable_params": 11505856,
+    "feature_dim": 512,
+    "projection_dim": 128
+  },
+  "contrastive_csv": "task2/data/generated/contrastive.csv"
+}

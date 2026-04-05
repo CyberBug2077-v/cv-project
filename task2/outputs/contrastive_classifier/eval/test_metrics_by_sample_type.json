@@ -1,0 +1,38 @@
+{
+  "metastatic": {
+    "accuracy": 0.5708333333333333,
+    "precision_macro": 0.5275570402848825,
+    "recall_macro": 0.5769448319773847,
+    "f1_macro": 0.5302848723607015,
+    "Tumor_precision": 0.8058252427184466,
+    "Tumor_recall": 0.5595505617977528,
+    "Tumor_f1": 0.6604774535809018,
+    "Tumor_support": 445,
+    "Lymphocyte_precision": 0.4488888888888889,
+    "Lymphocyte_recall": 0.6011904761904762,
+    "Lymphocyte_f1": 0.5139949109414759,
+    "Lymphocyte_support": 168,
+    "Histiocyte_precision": 0.3279569892473118,
+    "Histiocyte_recall": 0.5700934579439252,
+    "Histiocyte_f1": 0.41638225255972694,
+    "Histiocyte_support": 107
+  },
+  "primary": {
+    "accuracy": 0.5852372583479789,
+    "precision_macro": 0.5924669313621118,
+    "recall_macro": 0.5883926760087751,
+    "f1_macro": 0.5811996935891403,
+    "Tumor_precision": 0.5680933852140078,
+    "Tumor_recall": 0.5725490196078431,
+    "Tumor_f1": 0.5703125,
+    "Tumor_support": 255,
+    "Lymphocyte_precision": 0.7506297229219143,
+    "Lymphocyte_recall": 0.5601503759398496,
+    "Lymphocyte_f1": 0.6415500538213132,
+    "Lymphocyte_support": 532,
+    "Histiocyte_precision": 0.45867768595041325,
+    "Histiocyte_recall": 0.6324786324786325,
+    "Histiocyte_f1": 0.5317365269461077,
+    "Histiocyte_support": 351
+  }
+}

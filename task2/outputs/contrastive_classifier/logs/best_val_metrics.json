@@ -1,0 +1,15 @@
+{
+  "accuracy": 0.6447619047619048,
+  "precision_macro": 0.6533430471880058,
+  "recall_macro": 0.6447619047619048,
+  "f1_macro": 0.6393002451853463,
+  "Tumor_precision": 0.7154308617234469,
+  "Tumor_recall": 0.51,
+  "Tumor_f1": 0.5954962468723937,
+  "Lymphocyte_precision": 0.6255506607929515,
+  "Lymphocyte_recall": 0.8114285714285714,
+  "Lymphocyte_f1": 0.7064676616915423,
+  "Histiocyte_precision": 0.6190476190476191,
+  "Histiocyte_recall": 0.6128571428571429,
+  "Histiocyte_f1": 0.6159368269921034
+}

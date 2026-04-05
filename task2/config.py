@@ -1,0 +1,69 @@
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+TASK2_CLASS_MAP = {
+    "nuclei_tumor": 0,
+    "nuclei_lymphocyte": 1,
+    "nuclei_histiocyte": 2,
+}
+
+TASK2_LABEL_TO_NAME = {
+    0: "Tumor",
+    1: "Lymphocyte",
+    2: "Histiocyte",
+}
+
+TASK2_PATCH_SIZE = 100
+TASK2_RANDOM_SEED = 42
+TASK2_NUM_CLASSES = 3
+
+TASK2_TRAIN_SAMPLES_PER_CLASS = 2500
+TASK2_VAL_SAMPLES_PER_CLASS = 700
+
+TASK2_TRAIN_IMAGE_DIR = PROJECT_ROOT / "data" / "Dataset_Splits" / "train" / "image"
+TASK2_TRAIN_NUCLEI_DIR = PROJECT_ROOT / "data" / "Dataset_Splits" / "train" / "nuclei"
+
+TASK2_VAL_IMAGE_DIR = PROJECT_ROOT / "data" / "Dataset_Splits" / "validation" / "image"
+TASK2_VAL_NUCLEI_DIR = PROJECT_ROOT / "data" / "Dataset_Splits" / "validation" / "nuclei"
+
+TASK2_GENERATED_DIR = PROJECT_ROOT / "task2" / "data" / "generated"
+TASK2_PATCH_OUTPUT_DIR = TASK2_GENERATED_DIR / "patches"
+TASK2_TRAIN_CSV = TASK2_GENERATED_DIR / "train.csv"
+TASK2_VAL_CSV = TASK2_GENERATED_DIR / "val.csv"
+
+# training
+TASK2_BATCH_SIZE = 32
+TASK2_NUM_WORKERS = 4
+TASK2_NUM_EPOCHS = 20
+TASK2_LEARNING_RATE = 1e-4
+TASK2_WEIGHT_DECAY = 1e-4
+
+# device
+TASK2_DEVICE = "cuda"
+
+# outputs
+TASK2_OUTPUT_DIR = PROJECT_ROOT / "task2" / "outputs"
+
+# test
+TASK2_TEST_DIR = PROJECT_ROOT / "data" / "Task2_Test_Set"
+
+TASK2_CONTRASTIVE_SAMPLES_PER_CLASS = 2500
+TASK2_CONTRASTIVE_CSV = "task2/data/generated/contrastive.csv"
+
+TASK2_CONTRASTIVE_BATCH_SIZE = 64
+TASK2_CONTRASTIVE_NUM_EPOCHS = 30
+TASK2_CONTRASTIVE_LEARNING_RATE = 1e-4
+TASK2_CONTRASTIVE_WEIGHT_DECAY = 1e-4
+TASK2_CONTRASTIVE_TEMPERATURE = 0.2
+TASK2_CONTRASTIVE_PROJECTION_HIDDEN_DIM = 512
+TASK2_CONTRASTIVE_PROJECTION_DIM = 128
+TASK2_CONTRASTIVE_FEATURE_DROPOUT = 0.1
+
+TASK2_CONTRASTIVE_ENCODER_CHECKPOINT = "task2/outputs/contrastive/checkpoints/best.pt"
+
+TASK2_FROZEN_HEAD_NUM_EPOCHS = 20
+TASK2_FROZEN_HEAD_LEARNING_RATE = 1e-3
+TASK2_FROZEN_HEAD_WEIGHT_DECAY = 1e-4
+
+TASK2_CONTRASTIVE_CLASSIFIER_CHECKPOINT = "task2/outputs/contrastive_classifier/checkpoints/best.pt"

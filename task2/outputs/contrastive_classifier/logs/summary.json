@@ -1,0 +1,11 @@
+{
+  "best_epoch": 19,
+  "best_val_f1_macro": 0.6393002451853463,
+  "param_stats": {
+    "total_params": 11507395,
+    "trainable_params": 330883,
+    "encoder_total_params": 11505856,
+    "classifier_head_params": 1539
+  },
+  "encoder_checkpoint_path": "task2\\outputs\\contrastive\\checkpoints\\best.pt"
+}

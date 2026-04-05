@@ -1,0 +1,23 @@
+{
+  "accuracy": 0.5796555435952637,
+  "precision_macro": 0.5872490060123976,
+  "recall_macro": 0.5840632148055729,
+  "f1_macro": 0.576472183401947,
+  "Tumor_precision": 0.6978798586572438,
+  "Tumor_recall": 0.5642857142857143,
+  "Tumor_f1": 0.6240126382306477,
+  "Tumor_support": 700,
+  "Lymphocyte_precision": 0.6414790996784566,
+  "Lymphocyte_recall": 0.57,
+  "Lymphocyte_f1": 0.6036308623298033,
+  "Lymphocyte_support": 700,
+  "Histiocyte_precision": 0.4223880597014925,
+  "Histiocyte_recall": 0.6179039301310044,
+  "Histiocyte_f1": 0.50177304964539,
+  "Histiocyte_support": 458,
+  "total_params": 11507395,
+  "trainable_params": 330883,
+  "encoder_total_params": 11505856,
+  "classifier_head_params": 1539,
+  "checkpoint_path": "task2\\outputs\\contrastive_classifier\\checkpoints\\best.pt"
+}

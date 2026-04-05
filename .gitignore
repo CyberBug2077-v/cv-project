@@ -1,0 +1,5 @@
+/data/
+/task2/data/generated/
+/task2/outputs/baseline/checkpoints/
+/task2/outputs/contrastive/checkpoints/
+/task2/outputs/contrastive_classifier/checkpoints/

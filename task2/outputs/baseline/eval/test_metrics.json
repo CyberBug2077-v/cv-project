@@ -1,0 +1,20 @@
+{
+  "accuracy": 0.6803013993541442,
+  "precision_macro": 0.6775630237702309,
+  "recall_macro": 0.6776398419629861,
+  "f1_macro": 0.6720842116921055,
+  "Tumor_precision": 0.7431850789096126,
+  "Tumor_recall": 0.74,
+  "Tumor_f1": 0.7415891195418755,
+  "Tumor_support": 700,
+  "Lymphocyte_precision": 0.7793345008756567,
+  "Lymphocyte_recall": 0.6357142857142857,
+  "Lymphocyte_f1": 0.7002360346184107,
+  "Lymphocyte_support": 700,
+  "Histiocyte_precision": 0.5101694915254237,
+  "Histiocyte_recall": 0.6572052401746725,
+  "Histiocyte_f1": 0.5744274809160306,
+  "Histiocyte_support": 458,
+  "total_params": 11178051,
+  "trainable_params": 11178051
+}
