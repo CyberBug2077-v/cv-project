@@ -1,11 +1,83 @@
 {
-  "best_epoch": 19,
-  "best_val_f1_macro": 0.6393002451853463,
-  "param_stats": {
+  "best_epoch": 22,
+  "best_stage": "full_finetune",
+  "best_stage_epoch": 9,
+  "best_val_f1_macro": 0.7560413057909369,
+  "final_param_stats": {
     "total_params": 11507395,
-    "trainable_params": 330883,
-    "encoder_total_params": 11505856,
-    "classifier_head_params": 1539
+    "trainable_params": 11178051,
+    "encoder_backbone_params": 11176512,
+    "projection_head_params": 329344,
+    "classifier_head_params": 1539,
+    "encoder_train_mode": "full"
   },
-  "encoder_checkpoint_path": "task2\\outputs\\contrastive\\checkpoints\\best.pt"
+  "encoder_checkpoint_path": "task2\\outputs\\contrastive\\checkpoints\\best.pt",
+  "training_config": {
+    "stage1_num_epochs": 20,
+    "stage1_classifier_lr": 0.001,
+    "stage1_weight_decay": 0.0001,
+    "use_weighted_random_sampler": true,
+    "weighted_sampler_mode": "label_and_sample_type",
+    "stage2_num_epochs": 15,
+    "stage2_encoder_lr": 1e-05,
+    "stage2_classifier_lr": 0.0001,
+    "stage2_weight_decay": 0.0001,
+    "stage3_num_epochs": 10,
+    "stage3_encoder_lr": 5e-06,
+    "stage3_classifier_lr": 5e-05,
+    "stage3_weight_decay": 0.0001,
+    "early_stopping_patience": 5
+  },
+  "weighted_sampler": {
+    "enabled": true,
+    "mode": "label_and_sample_type",
+    "group_counts": {
+      "0|metastatic": 1471,
+      "0|primary": 1029,
+      "1|metastatic": 1057,
+      "1|primary": 1443,
+      "2|metastatic": 307,
+      "2|primary": 2193
+    },
+    "group_weights": {
+      "0|metastatic": 0.0006798096532970768,
+      "0|primary": 0.0009718172983479105,
+      "1|metastatic": 0.000946073793755913,
+      "1|primary": 0.000693000693000693,
+      "2|metastatic": 0.003257328990228013,
+      "2|primary": 0.00045599635202918376
+    }
+  },
+  "stage_summaries": [
+    {
+      "stage": "linear_probe",
+      "planned_epochs": 20,
+      "completed_stage_epochs": 7,
+      "best_stage_epoch": 2,
+      "best_global_epoch": 2,
+      "best_val_f1_macro": 0.7558545501447202,
+      "stopped_early": true,
+      "early_stopping_patience": 5
+    },
+    {
+      "stage": "last_block_finetune",
+      "planned_epochs": 15,
+      "completed_stage_epochs": 6,
+      "best_stage_epoch": 1,
+      "best_global_epoch": 8,
+      "best_val_f1_macro": 0.7539680014206723,
+      "stopped_early": true,
+      "early_stopping_patience": 5
+    },
+    {
+      "stage": "full_finetune",
+      "planned_epochs": 10,
+      "completed_stage_epochs": 10,
+      "best_stage_epoch": 9,
+      "best_global_epoch": 22,
+      "best_val_f1_macro": 0.7560413057909369,
+      "stopped_early": false,
+      "early_stopping_patience": 5
+    }
+  ]
 }

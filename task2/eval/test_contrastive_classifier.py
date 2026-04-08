@@ -4,7 +4,7 @@ import csv
 import json
 from pathlib import Path
 import sys
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 import torch
@@ -65,6 +65,18 @@ TASK2_CONTRASTIVE_FEATURE_DROPOUT = get_config_value(
     0.1,
 )
 
+TASK2_USE_TEST_TIME_AUGMENTATION = get_config_value(
+    "TASK2_USE_TEST_TIME_AUGMENTATION",
+    True,
+)
+
+TASK2_TEST_TIME_AUGMENTATION_VIEWS = tuple(
+    get_config_value(
+        "TASK2_TEST_TIME_AUGMENTATION_VIEWS",
+        ("identity",),
+    )
+)
+
 
 def get_device() -> torch.device:
     if TASK2_DEVICE == "cuda" and torch.cuda.is_available():
@@ -99,7 +111,38 @@ def build_test_loader() -> DataLoader:
     return loader
 
 
-class FrozenEncoderLinearClassifier(nn.Module):
+def apply_tta_view(images: torch.Tensor, view_name: str) -> torch.Tensor:
+    if view_name == "identity":
+        return images
+    if view_name == "hflip":
+        return torch.flip(images, dims=[3])
+    if view_name == "vflip":
+        return torch.flip(images, dims=[2])
+    if view_name == "hvflip":
+        return torch.flip(images, dims=[2, 3])
+    if view_name == "rot90":
+        return torch.rot90(images, k=1, dims=[2, 3])
+    if view_name == "rot180":
+        return torch.rot90(images, k=2, dims=[2, 3])
+    if view_name == "rot270":
+        return torch.rot90(images, k=3, dims=[2, 3])
+    raise ValueError(
+        f"Unsupported TTA view {view_name!r}. "
+        "Expected one of identity, hflip, vflip, hvflip, rot90, rot180, rot270."
+    )
+
+
+def get_tta_views() -> List[str]:
+    if not TASK2_USE_TEST_TIME_AUGMENTATION:
+        return ["identity"]
+
+    if not TASK2_TEST_TIME_AUGMENTATION_VIEWS:
+        return ["identity"]
+
+    return [str(view) for view in TASK2_TEST_TIME_AUGMENTATION_VIEWS]
+
+
+class ContrastiveEncoderLinearClassifier(nn.Module):
     """
     Same model structure as used in train_contrastive_classifier.py:
     pretrained contrastive encoder + frozen encoder + linear classifier head
@@ -116,26 +159,46 @@ class FrozenEncoderLinearClassifier(nn.Module):
         self.encoder_model = encoder_model
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
         self.classifier = nn.Linear(feature_dim, num_classes)
+        self.encoder_frozen = True
+        self.freeze_projection_head()
+        self.freeze_encoder()
 
+    def freeze_projection_head(self) -> None:
+        if hasattr(self.encoder_model, "freeze_projection_head"):
+            self.encoder_model.freeze_projection_head()
+        elif hasattr(self.encoder_model, "projection_head"):
+            for p in self.encoder_model.projection_head.parameters():
+                p.requires_grad = False
+
+    def freeze_encoder(self) -> None:
         if hasattr(self.encoder_model, "freeze_encoder"):
             self.encoder_model.freeze_encoder()
+        elif hasattr(self.encoder_model, "encoder"):
+            for p in self.encoder_model.encoder.parameters():
+                p.requires_grad = False
         else:
             for p in self.encoder_model.parameters():
                 p.requires_grad = False
+        self.encoder_frozen = True
 
-        self.encoder_model.eval()
+    def _extract_encoder_features(self, x: torch.Tensor) -> torch.Tensor:
+        if hasattr(self.encoder_model, "encoder"):
+            return self.encoder_model.encoder(x)
+        if hasattr(self.encoder_model, "encode"):
+            return self.encoder_model.encode(x, normalize=False)
+        return self.encoder_model.extract_features(x)
 
     def train(self, mode: bool = True):
         super().train(mode)
-        self.encoder_model.eval()
+        if hasattr(self.encoder_model, "encoder"):
+            self.encoder_model.encoder.eval()
+        if hasattr(self.encoder_model, "projection_head"):
+            self.encoder_model.projection_head.eval()
         return self
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
-            if hasattr(self.encoder_model, "encode"):
-                features = self.encoder_model.encode(x, normalize=False)
-            else:
-                features = self.encoder_model.extract_features(x)
+            features = self._extract_encoder_features(x)
 
         features = self.dropout(features)
         logits = self.classifier(features)
@@ -148,12 +211,21 @@ class FrozenEncoderLinearClassifier(nn.Module):
         return sum(p.numel() for p in self.parameters())
 
     def get_parameter_stats(self) -> Dict[str, int]:
-        encoder_total = sum(p.numel() for p in self.encoder_model.parameters())
+        if hasattr(self.encoder_model, "encoder"):
+            encoder_total = sum(p.numel() for p in self.encoder_model.encoder.parameters())
+        else:
+            encoder_total = sum(p.numel() for p in self.encoder_model.parameters())
+
+        projection_total = sum(
+            p.numel() for p in getattr(self.encoder_model, "projection_head", nn.Identity()).parameters()
+        )
         head_total = sum(p.numel() for p in self.classifier.parameters())
+
         return {
             "total_params": self.total_parameters(),
             "trainable_params": self.trainable_parameters(),
-            "encoder_total_params": encoder_total,
+            "encoder_backbone_params": encoder_total,
+            "projection_head_params": projection_total,
             "classifier_head_params": head_total,
         }
 
@@ -173,7 +245,7 @@ def load_model(device: torch.device):
         device=device,
     )
 
-    model = FrozenEncoderLinearClassifier(
+    model = ContrastiveEncoderLinearClassifier(
         encoder_model=encoder_model,
         feature_dim=512,
         num_classes=TASK2_NUM_CLASSES,
@@ -224,6 +296,7 @@ def compute_metrics(y_true: List[int], y_pred: List[int]) -> Dict[str, float]:
 @torch.no_grad()
 def evaluate(model, loader, device):
     model.eval()
+    tta_views = get_tta_views()
 
     all_labels: List[int] = []
     all_preds: List[int] = []
@@ -234,8 +307,17 @@ def evaluate(model, loader, device):
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
-        logits = model(images)
-        probs = torch.softmax(logits, dim=1)
+        probs_sum = None
+        for view_name in tta_views:
+            view_images = apply_tta_view(images, view_name)
+            logits = model(view_images)
+            view_probs = torch.softmax(logits, dim=1)
+            if probs_sum is None:
+                probs_sum = view_probs
+            else:
+                probs_sum = probs_sum + view_probs
+
+        probs = probs_sum / len(tta_views)
         preds = torch.argmax(probs, dim=1)
 
         all_labels.extend(labels.cpu().tolist())
@@ -249,7 +331,7 @@ def evaluate(model, loader, device):
                 item[key] = value[i]
             all_metadata.append(item)
 
-    return all_labels, all_preds, all_probs, all_metadata
+    return all_labels, all_preds, all_probs, all_metadata, tta_views
 
 
 def compute_group_metrics(
@@ -329,7 +411,7 @@ def main():
     test_loader = build_test_loader()
     model, checkpoint_path = load_model(device)
 
-    y_true, y_pred, probs, metadata = evaluate(model, test_loader, device)
+    y_true, y_pred, probs, metadata, tta_views = evaluate(model, test_loader, device)
 
     metrics = compute_metrics(y_true, y_pred)
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
@@ -343,9 +425,12 @@ def main():
     param_stats = model.get_parameter_stats()
     metrics["total_params"] = param_stats["total_params"]
     metrics["trainable_params"] = param_stats["trainable_params"]
-    metrics["encoder_total_params"] = param_stats["encoder_total_params"]
+    metrics["encoder_backbone_params"] = param_stats["encoder_backbone_params"]
+    metrics["projection_head_params"] = param_stats["projection_head_params"]
     metrics["classifier_head_params"] = param_stats["classifier_head_params"]
     metrics["checkpoint_path"] = str(checkpoint_path)
+    metrics["tta_enabled"] = bool(TASK2_USE_TEST_TIME_AUGMENTATION)
+    metrics["tta_views"] = list(tta_views)
 
     with (eval_dir / "test_metrics.json").open("w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
@@ -358,11 +443,16 @@ def main():
 
     print("Contrastive classifier test results")
     print(f"Loaded checkpoint : {checkpoint_path}")
+    print(f"TTA enabled       : {metrics['tta_enabled']}")
+    print(f"TTA views         : {', '.join(metrics['tta_views'])}")
     print(f"Accuracy          : {metrics['accuracy']:.4f}")
     print(f"Macro Precision   : {metrics['precision_macro']:.4f}")
     print(f"Macro Recall      : {metrics['recall_macro']:.4f}")
     print(f"Macro F1          : {metrics['f1_macro']:.4f}")
     print(f"Trainable Params  : {metrics['trainable_params']:,}")
+    print(f"Encoder Params    : {metrics['encoder_backbone_params']:,}")
+    print(f"Projection Params : {metrics['projection_head_params']:,}")
+    print(f"Classifier Params : {metrics['classifier_head_params']:,}")
 
     for class_name in CLASS_NAMES:
         print(

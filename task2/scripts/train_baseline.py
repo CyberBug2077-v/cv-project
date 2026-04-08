@@ -59,10 +59,15 @@ def get_device() -> torch.device:
 
 def build_transforms():
     train_transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomVerticalFlip(p=0.5),
-        transforms.RandomRotation(degrees=20),
-        transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1, hue=0.02),
+        transforms.RandomHorizontalFlip(p=0.3),
+        transforms.RandomVerticalFlip(p=0.3),
+        transforms.RandomRotation(degrees=10),
+        transforms.ColorJitter(
+            brightness=0.08,
+            contrast=0.08,
+            saturation=0.05,
+            hue=0.01,
+        ),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=[0.485, 0.456, 0.406],

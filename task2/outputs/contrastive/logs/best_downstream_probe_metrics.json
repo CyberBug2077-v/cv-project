@@ -1,0 +1,32 @@
+{
+  "train": {
+    "accuracy": 0.9644,
+    "precision_macro": 0.964657685410457,
+    "recall_macro": 0.9643999999999999,
+    "f1_macro": 0.9643763578868408,
+    "Tumor_precision": 0.9775234981610135,
+    "Tumor_recall": 0.9568,
+    "Tumor_f1": 0.9670507378209016,
+    "Lymphocyte_precision": 0.9655032467532467,
+    "Lymphocyte_recall": 0.9516,
+    "Lymphocyte_f1": 0.9585012087026591,
+    "Histiocyte_precision": 0.9509463113171108,
+    "Histiocyte_recall": 0.9848,
+    "Histiocyte_f1": 0.9675771271369621
+  },
+  "val": {
+    "accuracy": 0.7414285714285714,
+    "precision_macro": 0.7492210937100334,
+    "recall_macro": 0.7414285714285714,
+    "f1_macro": 0.737215330221254,
+    "Tumor_precision": 0.7445652173913043,
+    "Tumor_recall": 0.7828571428571428,
+    "Tumor_f1": 0.7632311977715878,
+    "Lymphocyte_precision": 0.7038777908343126,
+    "Lymphocyte_recall": 0.8557142857142858,
+    "Lymphocyte_f1": 0.7724049000644745,
+    "Histiocyte_precision": 0.7992202729044834,
+    "Histiocyte_recall": 0.5857142857142857,
+    "Histiocyte_f1": 0.6760098928277
+  }
+}

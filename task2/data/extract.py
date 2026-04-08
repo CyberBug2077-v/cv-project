@@ -7,7 +7,11 @@ import sys
 
 import numpy as np
 import tifffile
-from shapely.geometry import Polygon
+
+try:
+    from shapely.geometry import Polygon
+except ImportError:
+    Polygon = None
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -21,6 +25,8 @@ from task2.config import (
     TASK2_TRAIN_SAMPLES_PER_CLASS,
     TASK2_VAL_SAMPLES_PER_CLASS,
     TASK2_CONTRASTIVE_SAMPLES_PER_CLASS,
+    TASK2_CONTRASTIVE_SAMPLING_MODE,
+    TASK2_CONTRASTIVE_EXCLUDE_SUPERVISED_TRAIN,
     TASK2_TRAIN_IMAGE_DIR,
     TASK2_TRAIN_NUCLEI_DIR,
     TASK2_VAL_IMAGE_DIR,
@@ -30,6 +36,9 @@ from task2.config import (
     TASK2_VAL_CSV,
     TASK2_CONTRASTIVE_CSV,
 )
+
+BALANCED_SAMPLE_TYPES = ("primary", "metastatic")
+
 
 def list_geojson_files(geojson_dir):
     geojson_dir = Path(geojson_dir)
@@ -66,12 +75,13 @@ def load_geojson(geojson_path):
 
 
 def compute_centroid_from_polygon(points):
-    try:
-        poly = Polygon(points)
-        if poly.is_valid and not poly.is_empty:
-            return float(poly.centroid.x), float(poly.centroid.y)
-    except Exception:
-        pass
+    if Polygon is not None:
+        try:
+            poly = Polygon(points)
+            if poly.is_valid and not poly.is_empty:
+                return float(poly.centroid.x), float(poly.centroid.y)
+        except Exception:
+            pass
 
     points = np.asarray(points, dtype=np.float32)
     return float(points[:, 0].mean()), float(points[:, 1].mean())
@@ -232,12 +242,30 @@ def group_records_by_label(records):
     return grouped
 
 
+def group_records_by_label_and_sample_type(records):
+    grouped = {
+        label: {sample_type: [] for sample_type in BALANCED_SAMPLE_TYPES}
+        for label in TASK2_LABEL_TO_NAME
+    }
+
+    for record in records:
+        sample_type = record.get("sample_type", "unknown")
+        if sample_type in BALANCED_SAMPLE_TYPES:
+            grouped[record["label"]][sample_type].append(record)
+
+    return grouped
+
+
 def sample_balanced_records(grouped_records, samples_per_class, seed=42):
     rng = random.Random(seed)
     sampled = []
 
     for label, class_name in TASK2_LABEL_TO_NAME.items():
         candidates = grouped_records[label]
+        if samples_per_class is None:
+            sampled.extend(candidates)
+            continue
+
         if len(candidates) < samples_per_class:
             raise ValueError(
                 f"Not enough samples for class {class_name}: "
@@ -247,6 +275,80 @@ def sample_balanced_records(grouped_records, samples_per_class, seed=42):
         sampled.extend(rng.sample(candidates, samples_per_class))
 
     return sampled
+
+
+def sample_balanced_records_by_label_and_sample_type(
+    grouped_records,
+    samples_per_group,
+    seed=42,
+):
+    rng = random.Random(seed)
+    sampled = []
+
+    for label, class_name in TASK2_LABEL_TO_NAME.items():
+        for sample_type in BALANCED_SAMPLE_TYPES:
+            candidates = grouped_records[label][sample_type]
+            if len(candidates) < samples_per_group:
+                raise ValueError(
+                    f"Not enough samples for class {class_name} and sample_type {sample_type}: "
+                    f"required {samples_per_group}, found {len(candidates)}"
+                )
+            sampled.extend(rng.sample(candidates, samples_per_group))
+
+    return sampled
+
+
+def resolve_contrastive_samples_per_class(grouped_records, sampling_mode, samples_per_class):
+    valid_modes = {
+        "fixed_per_class",
+        "all",
+        "max_balanced",
+        "max_balanced_class_sample_type",
+    }
+    if sampling_mode not in valid_modes:
+        raise ValueError(
+            f"Unsupported contrastive sampling mode {sampling_mode!r}. "
+            f"Expected one of {sorted(valid_modes)}."
+        )
+
+    if sampling_mode == "all":
+        return None
+
+    if sampling_mode == "fixed_per_class":
+        if samples_per_class is None:
+            raise ValueError(
+                "TASK2_CONTRASTIVE_SAMPLES_PER_CLASS must be set when "
+                "TASK2_CONTRASTIVE_SAMPLING_MODE='fixed_per_class'."
+            )
+        return samples_per_class
+
+    available_counts = [
+        len(grouped_records[label])
+        for label in TASK2_LABEL_TO_NAME
+    ]
+    if not available_counts:
+        raise ValueError("No grouped records found for contrastive sampling.")
+
+    return min(available_counts)
+
+
+def resolve_contrastive_samples_per_class_and_sample_type(grouped_records):
+    available_counts = []
+    for label in TASK2_LABEL_TO_NAME:
+        for sample_type in BALANCED_SAMPLE_TYPES:
+            available_counts.append(len(grouped_records[label][sample_type]))
+
+    if not available_counts:
+        raise ValueError("No grouped class/sample_type records found for contrastive sampling.")
+
+    min_count = min(available_counts)
+    if min_count <= 0:
+        raise ValueError(
+            "At least one class/sample_type bucket is empty; cannot create a "
+            "class-and-sample-type balanced contrastive split."
+        )
+
+    return min_count
 
 def sample_balanced_records_from_records(records, samples_per_class, seed=42):
     grouped_records = group_records_by_label(records)
@@ -271,6 +373,7 @@ def export_records_as_patches_and_csv(records, output_patch_dir, output_csv_path
         "patch_path",
         "label",
         "class_name",
+        "sample_type",
         "raw_class_name",
         "feature_id",
         "source_image_name",
@@ -310,6 +413,7 @@ def export_records_as_patches_and_csv(records, output_patch_dir, output_csv_path
             "patch_path": str(patch_path),
             "label": record["label"],
             "class_name": record["class_name"],
+            "sample_type": record.get("sample_type", "unknown"),
             "raw_class_name": record["raw_class_name"],
             "feature_id": record["feature_id"],
             "source_image_name": record["source_image_name"],
@@ -346,7 +450,6 @@ def build_supervised_split(
 
     for label, class_name in TASK2_LABEL_TO_NAME.items():
         print(f"  {class_name}: {len(grouped_records[label])} candidates")
-
     sampled_records = sample_balanced_records(
         grouped_records=grouped_records,
         samples_per_class=samples_per_class,
@@ -369,6 +472,7 @@ def build_contrastive_split(
     output_patch_dir,
     output_csv_path,
     samples_per_class,
+    sampling_mode,
     class_map,
     exclude_records=None,
     patch_size=100,
@@ -384,14 +488,58 @@ def build_contrastive_split(
 
     candidate_records = filter_records_by_excluded_uids(all_records, excluded_uids)
     grouped_records = group_records_by_label(candidate_records)
+    grouped_records_by_sample_type = group_records_by_label_and_sample_type(candidate_records)
 
     print(f"[{split_name}] excluded {len(excluded_uids)} supervised-train nuclei")
     for label, class_name in TASK2_LABEL_TO_NAME.items():
         print(f"  {class_name}: {len(grouped_records[label])} candidates after exclusion")
+    for label, class_name in TASK2_LABEL_TO_NAME.items():
+        sample_type_counts = {
+            sample_type: len(grouped_records_by_sample_type[label][sample_type])
+            for sample_type in BALANCED_SAMPLE_TYPES
+        }
+        print(f"  {class_name} by sample_type: {sample_type_counts}")
+
+    if sampling_mode == "max_balanced_class_sample_type":
+        resolved_samples_per_group = resolve_contrastive_samples_per_class_and_sample_type(
+            grouped_records_by_sample_type
+        )
+        print(f"[{split_name}] sampling_mode={sampling_mode}")
+        print(
+            f"[{split_name}] sampling {resolved_samples_per_group} nuclei for each "
+            f"class x sample_type bucket"
+        )
+
+        sampled_records = sample_balanced_records_by_label_and_sample_type(
+            grouped_records=grouped_records_by_sample_type,
+            samples_per_group=resolved_samples_per_group,
+            seed=seed,
+        )
+
+        export_records_as_patches_and_csv(
+            records=sampled_records,
+            output_patch_dir=output_patch_dir,
+            output_csv_path=output_csv_path,
+            patch_size=patch_size,
+        )
+
+        return sampled_records
+
+    resolved_samples_per_class = resolve_contrastive_samples_per_class(
+        grouped_records=grouped_records,
+        sampling_mode=sampling_mode,
+        samples_per_class=samples_per_class,
+    )
+
+    print(f"[{split_name}] sampling_mode={sampling_mode}")
+    if resolved_samples_per_class is None:
+        print(f"[{split_name}] using all available candidate nuclei per class")
+    else:
+        print(f"[{split_name}] sampling {resolved_samples_per_class} nuclei per class")
 
     sampled_records = sample_balanced_records(
         grouped_records=grouped_records,
-        samples_per_class=samples_per_class,
+        samples_per_class=resolved_samples_per_class,
         seed=seed,
     )
 
@@ -437,8 +585,11 @@ def main():
         output_patch_dir=TASK2_PATCH_OUTPUT_DIR / "contrastive",
         output_csv_path=TASK2_CONTRASTIVE_CSV,
         samples_per_class=TASK2_CONTRASTIVE_SAMPLES_PER_CLASS,
+        sampling_mode=TASK2_CONTRASTIVE_SAMPLING_MODE,
         class_map=TASK2_CLASS_MAP,
-        exclude_records=train_records,
+        exclude_records=(
+            train_records if TASK2_CONTRASTIVE_EXCLUDE_SUPERVISED_TRAIN else None
+        ),
         patch_size=TASK2_PATCH_SIZE,
         seed=TASK2_RANDOM_SEED + 1,
     )

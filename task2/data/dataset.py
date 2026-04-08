@@ -137,10 +137,12 @@ class NucleiClassificationDataset(Dataset):
 class ContrastiveNucleiDataset(Dataset):
     """
     Dataset for contrastive pretraining.
-    Returns two augmented views of the same patch.
+    Returns two augmented views of the same patch, and optionally the class label.
 
     Expected CSV columns:
     - patch_path
+    Optional:
+    - label
     Optional metadata columns are preserved if return_metadata=True.
     """
 
@@ -148,6 +150,7 @@ class ContrastiveNucleiDataset(Dataset):
         self,
         csv_path: str | Path,
         view_transform: Callable,
+        return_label: bool = False,
         return_metadata: bool = False,
     ) -> None:
         self.csv_path = Path(csv_path)
@@ -155,9 +158,15 @@ class ContrastiveNucleiDataset(Dataset):
 
         if "patch_path" not in self.df.columns:
             raise ValueError(f"'patch_path' column not found in {self.csv_path}")
+        if return_label and "label" not in self.df.columns:
+            raise ValueError(f"'label' column not found in {self.csv_path}")
 
         self.view_transform = view_transform
+        self.return_label = return_label
         self.return_metadata = return_metadata
+
+        if "label" in self.df.columns:
+            self.df["label"] = self.df["label"].astype(int)
 
     def __len__(self) -> int:
         return len(self.df)
@@ -165,6 +174,7 @@ class ContrastiveNucleiDataset(Dataset):
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
         image = _read_image(row["patch_path"])
+        label = int(row["label"]) if self.return_label else None
 
         if self._is_albumentations():
             view1 = self.view_transform(image=image)["image"]
@@ -174,10 +184,15 @@ class ContrastiveNucleiDataset(Dataset):
             view1 = self.view_transform(pil_image)
             view2 = self.view_transform(pil_image)
 
+        if self.return_label and not self.return_metadata:
+            return view1, view2, label
+
         if not self.return_metadata:
             return view1, view2
 
         metadata = row.to_dict()
+        if self.return_label:
+            return view1, view2, label, metadata
         return view1, view2, metadata
 
     def _is_albumentations(self) -> bool:
@@ -326,10 +341,12 @@ def build_classification_datasets(
 def build_contrastive_dataset(
     contrastive_csv: str | Path,
     view_transform: Callable,
+    return_label: bool = False,
     return_metadata: bool = False,
 ) -> ContrastiveNucleiDataset:
     return ContrastiveNucleiDataset(
         csv_path=contrastive_csv,
         view_transform=view_transform,
+        return_label=return_label,
         return_metadata=return_metadata,
     )

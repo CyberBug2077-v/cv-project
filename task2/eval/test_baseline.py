@@ -35,6 +35,27 @@ from task2.models.baseline import build_baseline_model
 CLASS_NAMES = ["Tumor", "Lymphocyte", "Histiocyte"]
 
 
+def get_config_value(name: str, default):
+    try:
+        from task2 import config as task2_config
+        return getattr(task2_config, name, default)
+    except Exception:
+        return default
+
+
+TASK2_USE_TEST_TIME_AUGMENTATION = get_config_value(
+    "TASK2_USE_TEST_TIME_AUGMENTATION",
+    True,
+)
+
+TASK2_TEST_TIME_AUGMENTATION_VIEWS = tuple(
+    get_config_value(
+        "TASK2_TEST_TIME_AUGMENTATION_VIEWS",
+        ("identity",),
+    )
+)
+
+
 def get_device() -> torch.device:
     if TASK2_DEVICE == "cuda" and torch.cuda.is_available():
         return torch.device("cuda")
@@ -66,6 +87,37 @@ def build_test_loader() -> DataLoader:
         pin_memory=True,
     )
     return loader
+
+
+def apply_tta_view(images: torch.Tensor, view_name: str) -> torch.Tensor:
+    if view_name == "identity":
+        return images
+    if view_name == "hflip":
+        return torch.flip(images, dims=[3])
+    if view_name == "vflip":
+        return torch.flip(images, dims=[2])
+    if view_name == "hvflip":
+        return torch.flip(images, dims=[2, 3])
+    if view_name == "rot90":
+        return torch.rot90(images, k=1, dims=[2, 3])
+    if view_name == "rot180":
+        return torch.rot90(images, k=2, dims=[2, 3])
+    if view_name == "rot270":
+        return torch.rot90(images, k=3, dims=[2, 3])
+    raise ValueError(
+        f"Unsupported TTA view {view_name!r}. "
+        "Expected one of identity, hflip, vflip, hvflip, rot90, rot180, rot270."
+    )
+
+
+def get_tta_views() -> List[str]:
+    if not TASK2_USE_TEST_TIME_AUGMENTATION:
+        return ["identity"]
+
+    if not TASK2_TEST_TIME_AUGMENTATION_VIEWS:
+        return ["identity"]
+
+    return [str(view) for view in TASK2_TEST_TIME_AUGMENTATION_VIEWS]
 
 
 def compute_metrics(y_true: List[int], y_pred: List[int]) -> Dict[str, float]:
@@ -106,6 +158,7 @@ def compute_metrics(y_true: List[int], y_pred: List[int]) -> Dict[str, float]:
 @torch.no_grad()
 def evaluate(model, loader, device):
     model.eval()
+    tta_views = get_tta_views()
 
     all_labels: List[int] = []
     all_preds: List[int] = []
@@ -116,8 +169,17 @@ def evaluate(model, loader, device):
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
-        logits = model(images)
-        probs = torch.softmax(logits, dim=1)
+        probs_sum = None
+        for view_name in tta_views:
+            view_images = apply_tta_view(images, view_name)
+            logits = model(view_images)
+            view_probs = torch.softmax(logits, dim=1)
+            if probs_sum is None:
+                probs_sum = view_probs
+            else:
+                probs_sum = probs_sum + view_probs
+
+        probs = probs_sum / len(tta_views)
         preds = torch.argmax(probs, dim=1)
 
         all_labels.extend(labels.cpu().tolist())
@@ -131,7 +193,7 @@ def evaluate(model, loader, device):
                 item[key] = value[i]
             all_metadata.append(item)
 
-    return all_labels, all_preds, all_probs, all_metadata
+    return all_labels, all_preds, all_probs, all_metadata, tta_views
 
 
 def save_predictions_csv(
@@ -199,7 +261,7 @@ def main():
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
 
-    y_true, y_pred, probs, paths = evaluate(model, test_loader, device)
+    y_true, y_pred, probs, paths, tta_views = evaluate(model, test_loader, device)
 
     metrics = compute_metrics(y_true, y_pred)
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
@@ -208,6 +270,8 @@ def main():
     param_stats = model.get_parameter_stats()
     metrics["total_params"] = param_stats["total_params"]
     metrics["trainable_params"] = param_stats["trainable_params"]
+    metrics["tta_enabled"] = bool(TASK2_USE_TEST_TIME_AUGMENTATION)
+    metrics["tta_views"] = list(tta_views)
 
     with (eval_dir / "test_metrics.json").open("w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
@@ -216,6 +280,8 @@ def main():
     save_predictions_csv(paths, y_true, y_pred, probs, eval_dir / "test_predictions.csv")
 
     print("Test results")
+    print(f"TTA enabled     : {metrics['tta_enabled']}")
+    print(f"TTA views       : {', '.join(metrics['tta_views'])}")
     print(f"Accuracy        : {metrics['accuracy']:.4f}")
     print(f"Macro Precision : {metrics['precision_macro']:.4f}")
     print(f"Macro Recall    : {metrics['recall_macro']:.4f}")

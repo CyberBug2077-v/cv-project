@@ -1,11 +1,24 @@
 {
-  "best_epoch": 30,
-  "best_train_loss": 0.8017537700824249,
+  "best_epoch": 12,
+  "selection_metric": "f1_macro",
+  "selection_metric_tolerance": 0.005,
+  "selection_strategy": "downstream_val_metric_with_lower_loss_preference_within_tolerance",
+  "best_downstream_val_score": 0.737215330221254,
+  "best_downstream_val_accuracy": 0.7414285714285714,
+  "best_downstream_val_f1_macro": 0.737215330221254,
+  "best_selected_train_loss": 4.023619426523938,
+  "best_selection_reason": "new_best_downstream_metric",
+  "best_metric_seen": 0.737215330221254,
+  "lowest_train_loss": 3.8600418620249806,
+  "lowest_train_loss_epoch": 29,
+  "pretrain_objective": "supervised_contrastive",
   "param_stats": {
     "total_params": 11505856,
     "trainable_params": 11505856,
     "feature_dim": 512,
     "projection_dim": 128
   },
-  "contrastive_csv": "task2/data/generated/contrastive.csv"
+  "contrastive_csv": "task2/data/generated/contrastive.csv",
+  "train_csv": "I:\\cv\\project\\task2\\data\\generated\\train.csv",
+  "val_csv": "I:\\cv\\project\\task2\\data\\generated\\val.csv"
 }
