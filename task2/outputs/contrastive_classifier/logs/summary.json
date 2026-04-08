@@ -1,8 +1,8 @@
 {
-  "best_epoch": 22,
-  "best_stage": "full_finetune",
-  "best_stage_epoch": 9,
-  "best_val_f1_macro": 0.7560413057909369,
+  "best_epoch": 1,
+  "best_stage": "linear_probe",
+  "best_stage_epoch": 1,
+  "best_val_f1_macro": 0.7737033742433018,
   "final_param_stats": {
     "total_params": 11507395,
     "trainable_params": 11178051,
@@ -52,31 +52,31 @@
     {
       "stage": "linear_probe",
       "planned_epochs": 20,
-      "completed_stage_epochs": 7,
-      "best_stage_epoch": 2,
-      "best_global_epoch": 2,
-      "best_val_f1_macro": 0.7558545501447202,
+      "completed_stage_epochs": 6,
+      "best_stage_epoch": 1,
+      "best_global_epoch": 1,
+      "best_val_f1_macro": 0.7737033742433018,
       "stopped_early": true,
       "early_stopping_patience": 5
     },
     {
       "stage": "last_block_finetune",
       "planned_epochs": 15,
-      "completed_stage_epochs": 6,
-      "best_stage_epoch": 1,
+      "completed_stage_epochs": 7,
+      "best_stage_epoch": 2,
       "best_global_epoch": 8,
-      "best_val_f1_macro": 0.7539680014206723,
+      "best_val_f1_macro": 0.7724358501524756,
       "stopped_early": true,
       "early_stopping_patience": 5
     },
     {
       "stage": "full_finetune",
       "planned_epochs": 10,
-      "completed_stage_epochs": 10,
-      "best_stage_epoch": 9,
-      "best_global_epoch": 22,
-      "best_val_f1_macro": 0.7560413057909369,
-      "stopped_early": false,
+      "completed_stage_epochs": 6,
+      "best_stage_epoch": 1,
+      "best_global_epoch": 14,
+      "best_val_f1_macro": 0.7683043582731562,
+      "stopped_early": true,
       "early_stopping_patience": 5
     }
   ]
