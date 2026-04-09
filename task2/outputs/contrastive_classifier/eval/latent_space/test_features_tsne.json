@@ -1,0 +1,24 @@
+{
+  "split": "test",
+  "checkpoint_type": "contrastive_classifier",
+  "checkpoint_path": "task2\\outputs\\contrastive_classifier\\checkpoints\\best.pt",
+  "representation": "features",
+  "embedding_dim": 512,
+  "num_samples": 1858,
+  "max_samples": null,
+  "class_counts": {
+    "Tumor": 700,
+    "Lymphocyte": 700,
+    "Histiocyte": 458
+  },
+  "sample_type_counts": {
+    "metastatic": 720,
+    "primary": 1138
+  },
+  "figure_path": "I:\\cv\\project\\task2\\outputs\\contrastive_classifier\\eval\\latent_space\\test_features_tsne.png",
+  "csv_path": "I:\\cv\\project\\task2\\outputs\\contrastive_classifier\\eval\\latent_space\\test_features_tsne.csv",
+  "reducer": {
+    "method": "tsne",
+    "perplexity": 30.0
+  }
+}

@@ -149,6 +149,16 @@ This loads the best contrastive checkpoint, freezes the encoder, and trains a li
 python task2/eval/test_contrastive_classifier.py
 ```
 
+### 9. Visualize the latent space in 2D
+
+This extracts contrastive representations, reduces them to 2D, and saves a scatter plot plus coordinates CSV.
+
+```powershell
+python task2/eval/visualize_contrastive_latent_space.py --split test --representation features --method tsne
+```
+
+You can also switch to `--split train` or `--split val`, choose `--representation projections`, and limit points with `--max-samples 2000`.
+
 ## Outputs
 
 Training and evaluation artifacts are written under `task2/outputs/`:
@@ -177,6 +187,8 @@ Typical saved artifacts include:
 - `test_metrics.json`
 - `test_predictions.csv`
 - `test_confusion_matrix.npy`
+- `eval/latent_space/*.png`
+- `eval/latent_space/*.csv`
 
 ## Notes on Re-running
 
